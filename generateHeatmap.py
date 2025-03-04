@@ -14,7 +14,7 @@ time.sleep(2)  # 等待串口稳定
 
 # 初始数据（单个像素块）
 data = np.array([[0]])  # 1x1 数组，存储压力数据
-1
+
 # 创建 Matplotlib 图像
 fig, ax = plt.subplots(figsize=(2, 2))  # 画布大小适配单个色块
 heatmap = ax.imshow(data, cmap="hot", vmin=0, vmax=1023)  # 颜色范围 0-1023
@@ -38,7 +38,7 @@ def update_color(frame):
     return [heatmap]
 
 # 动画更新（实时刷新）
-ani = animation.FuncAnimation(fig, update_color, interval=10, blit=True)
+ani = animation.FuncAnimation(fig, update_color, interval=1, blit=True)
 
 plt.colorbar(heatmap)  # 颜色条
 plt.show()
