@@ -34,11 +34,11 @@ def update_color(frame):
             heatmap.set_clim(vmin=0, vmax=1023)  # 确保颜色映射正确
         except ValueError:
             pass  # 过滤异常数据
-
+    # print(f"Updated value: {data[0, 0]} @ {time.time()}") # 调试信息
     return [heatmap]
 
 # 动画更新（实时刷新）
-ani = animation.FuncAnimation(fig, update_color, interval=1, blit=True)
+ani = animation.FuncAnimation(fig, update_color, interval=1, blit=True, save_count=50)
 
 plt.colorbar(heatmap)  # 颜色条
 plt.show()
