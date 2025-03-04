@@ -1,24 +1,47 @@
-import pandas as pd
+import serial
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import time
 
-# 读取 Excel 文件
-data = pd.read_excel("pressure_data.xlsx")
+# 串口配置
+SERIAL_PORT = "COM4"  # Windows: "COM3" | Linux/macOS: "/dev/ttyUSB0"
+BAUD_RATE = 9600  # 串口波特率
 
-# 确保数据格式正确
-print(data.head())
+# 初始化串口
+ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.1)
+time.sleep(2)  # 等待串口稳定
 
-# 计算压力（如果 Excel 已经包含“压力”列，可以跳过这一步）
-data['Calculated Pressure'] = data['电阻1'] * 0.1 + data['电阻2'] * 0.2  # 示例公式
+# 初始数据（单个像素块）
+data = np.array([[0]])  # 1x1 数组，存储压力数据
+1
+# 创建 Matplotlib 图像
+fig, ax = plt.subplots(figsize=(2, 2))  # 画布大小适配单个色块
+heatmap = ax.imshow(data, cmap="hot", vmin=0, vmax=1023)  # 颜色范围 0-1023
 
-# 创建热力图数据
-heatmap_data = data.pivot(index='位置', columns='Calculated Pressure', values='压力')
+# 移除坐标轴刻度
+ax.set_xticks([])
+ax.set_yticks([])
+plt.title("Pressure Indicator")
 
-# 绘制热力图
-plt.figure(figsize=(10, 6))
-sns.heatmap(heatmap_data, cmap='hot', annot=True)
-plt.title('Pressure Distribution Heatmap')
-plt.xlabel('Calculated Pressure')
-plt.ylabel('Position (cm)')
+# **更新色块颜色**
+def update_color(frame):    
+    if ser.in_waiting > 0:
+        try:
+            sensor_value = int(ser.readline().decode("utf-8").strip())  # 读取数据
+            data[0, 0] = sensor_value  # 更新单个像素值
+            heatmap.set_data(data)  # 更新颜色
+            heatmap.set_clim(vmin=0, vmax=1023)  # 确保颜色映射正确
+        except ValueError:
+            pass  # 过滤异常数据
+
+    return [heatmap]
+
+# 动画更新（实时刷新）
+ani = animation.FuncAnimation(fig, update_color, interval=10, blit=True)
+
+plt.colorbar(heatmap)  # 颜色条
 plt.show()
+
+# 关闭串口
+ser.close()
