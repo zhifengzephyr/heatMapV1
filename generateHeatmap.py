@@ -1,46 +1,57 @@
 import serial
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import time
 
 # 串口配置
-SERIAL_PORT = "COM4"  # Windows: "COM3" | Linux/macOS: "/dev/ttyUSB0"
-BAUD_RATE = 9600  # 串口波特率
+SERIAL_PORT = "COM4"  # Windows: "COM3", "COM4" 等
+BAUD_RATE = 9600  # 和 Arduino 代码保持一致
 
-# 初始化串口
-ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.1)
-time.sleep(2)  # 等待串口稳定
 
-# 初始数据（单个像素块）
-data = np.array([[0]])  # 1x1 数组，存储压力数据
+# 连接 Arduino
+ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+time.sleep(2)  # 等待 Arduino 复位
 
-# 创建 Matplotlib 图像
-fig, ax = plt.subplots(figsize=(2, 2))  # 画布大小适配单个色块
-heatmap = ax.imshow(data, cmap="hot", vmin=0, vmax=1023)  # 颜色范围 0-1023
+# 创建 2×1 的空白热图数据
+heatmap_data = np.zeros((2, 1))
 
-# 移除坐标轴刻度
-ax.set_xticks([])
-ax.set_yticks([])
-plt.title("Pressure Indicator")
+# 设置 Matplotlib 画布
+fig, ax = plt.subplots()
+cax = ax.imshow(heatmap_data, cmap="hot", vmin=0, vmax=1023)  # 设定颜色范围为 0~1023
+fig.colorbar(cax)  # 添加颜色条
+ax.set_xticks([])  # 移除 x 轴刻度
+ax.set_yticks([0, 1])  # 设定 y 轴刻度
+ax.set_yticklabels(["A0", "A1"])  # 设置 y 轴标签
 
-# **更新色块颜色**
-def update_color(frame):    
+# 读取 Arduino 数据并更新热图
+def update_heatmap(frame):
+    global heatmap_data
     if ser.in_waiting > 0:
         try:
-            sensor_value = int(ser.readline().decode("utf-8").strip())  # 读取数据
-            data[0, 0] = sensor_value  # 更新单个像素值
-            heatmap.set_data(data)  # 更新颜色
-            heatmap.set_clim(vmin=0, vmax=1023)  # 确保颜色映射正确
+            # 读取 Arduino 数据
+            data = ser.readline().decode("utf-8").strip()
+            values = data.split(",")
+
+            if len(values) == 2:  # 确保是 2 个数据
+                a0 = int(values[0])
+                a1 = int(values[1])
+
+                # 更新热图数据
+                heatmap_data[0, 0] = a0
+                heatmap_data[1, 0] = a1
+
+                # 刷新 imshow 数据
+                cax.set_array(heatmap_data)
+
         except ValueError:
-            pass  # 过滤异常数据
-    # print(f"Updated value: {data[0, 0]} @ {time.time()}") # 调试信息
-    return [heatmap]
+            print(f"Invalid data received: {data}")
 
-# 动画更新（实时刷新）
-ani = animation.FuncAnimation(fig, update_color, interval=1, blit=True, save_count=50)
+    return cax,
 
-plt.colorbar(heatmap)  # 颜色条
+# 创建动画，调用 update_heatmap
+ani = animation.FuncAnimation(fig, update_heatmap, interval=5, blit=False)
+
 plt.show()
 
 # 关闭串口
